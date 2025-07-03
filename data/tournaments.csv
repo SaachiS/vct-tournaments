@@ -1,0 +1,11 @@
+tournament_id,tournament_name,start_date,end_date,prize_pool,participent_num,winner_id,runner_up_id,tournament_region
+0,VCT Masters Toronto,2025-06-07,2025-06-22,"$1,000,000",12,39,25,INTL
+1,VCT 2025: EMEA Stage 1,2025-03-26,2025-05-18,$0,12,25,24,EMEA
+2,VCT 2025: Pacific Stage 1,2025-03-22,2025-05-11,$0,12,42,37,APAC
+3,VCT 2025: China Stage 1,2025-03-13,2025-05-04,$0,12,19,18,CN
+4,VCT 2025: Americas Stage 1,2025-03-21,2025-05-04,$0,12,6,1,NA
+5,VCT Masters Bangkok,2025-02-20,2025-03-02,"$500,000",8,44,6,INTL
+6,VCT 2025: EMEA Kickoff,2025-01-15,2025-02-09,$0,12,27,30,EMEA
+7,VCT 2025: Pacific Kickoff,2025-01-18,2025-02-09,"$250,000",12,38,44,APAC
+8,VCT 2025: Americas Kickoff,2025-01-16,2025-02-08,$0,12,6,1,CN
+9,VCT 2025: China Kickoff,2025-01-11,2025-01-25,$0,12,12,21,NA

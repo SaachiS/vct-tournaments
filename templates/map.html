@@ -1,0 +1,613 @@
+{% extends "base.html" %}
+
+{% block title %}Tournament Map - Valorant Tournament Tracker{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+
+<style>
+    .map-hero {
+        padding: 60px 0 40px;
+        text-align: center;
+        background: rgba(17, 24, 35, 0.8);
+        position: relative;
+    }
+
+    .map-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #FF4655, transparent);
+    }
+
+    .map-hero h1 {
+        font-family: 'Orbitron', monospace;
+        font-size: clamp(2.5rem, 6vw, 4rem);
+        font-weight: 900;
+        color: #ffffff;
+        margin-bottom: 1rem;
+        text-shadow: 0 0 30px #FF4655;
+        animation: heroGlow 3s ease-in-out infinite alternate;
+    }
+
+    .map-hero p {
+        font-size: 1.2rem;
+        color: #ffffff;
+        opacity: 0.9;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+
+    .controls {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 70, 85, 0.3);
+        border-radius: 15px;
+        padding: 25px;
+        margin: 30px 0;
+        backdrop-filter: blur(20px);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .controls::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: conic-gradient(from 0deg, transparent, rgba(255, 70, 85, 0.1), transparent);
+        animation: rotate 6s linear infinite;
+        opacity: 0.3;
+    }
+
+    .controls > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .filter-row {
+        display: flex;
+        gap: 20px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 150px;
+    }
+
+    .filter-group label {
+        font-family: 'Orbitron', monospace;
+        font-weight: 700;
+        color: #ffffff;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-shadow: 0 0 10px #FF4655;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 12px 15px;
+        border: 2px solid rgba(255, 70, 85, 0.3);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        background: rgba(17, 24, 35, 0.8);
+        color: #ffffff;
+        transition: all 0.3s ease;
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 600;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+        outline: none;
+        border-color: #FF4655;
+        box-shadow: 0 0 20px rgba(255, 70, 85, 0.4);
+        background: rgba(17, 24, 35, 0.9);
+    }
+
+    .filter-group select option {
+        background: #111823;
+        color: #ffffff;
+    }
+
+    .stats {
+        display: flex;
+        gap: 30px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding-top: 15px;
+        border-top: 1px solid rgba(255, 70, 85, 0.2);
+    }
+
+    .stat-item {
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .stat-number {
+        display: block;
+        font-family: 'Orbitron', monospace;
+        font-size: 1.5rem;
+        font-weight: 900;
+        color: #FF4655;
+        text-shadow: 0 0 15px #FF4655;
+        animation: pulse 2s ease-in-out infinite alternate;
+    }
+
+    .map-container {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(255, 70, 85, 0.3);
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(255, 70, 85, 0.2);
+        height: 600px;
+        position: relative;
+        margin-bottom: 40px;
+    }
+
+    #map {
+        height: 100%;
+        width: 100%;
+        border-radius: 13px;
+    }
+
+    .custom-popup {
+        font-family: 'Rajdhani', sans-serif;
+        color: #111823;
+    }
+
+    .popup-title {
+        font-family: 'Orbitron', monospace;
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #111823;
+        margin-bottom: 10px;
+        border-bottom: 2px solid #FF4655;
+        padding-bottom: 5px;
+    }
+
+    .popup-detail {
+        margin: 6px 0;
+        color: #111823;
+        font-weight: 500;
+    }
+
+    .popup-prize {
+        color: #FF4655;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .popup-tier {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        margin-top: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .tier-s {
+        background: #FF4655;
+        color: #ffffff;
+        box-shadow: 0 0 15px rgba(255, 70, 85, 0.5);
+    }
+
+    .tier-a {
+        background: #111823;
+        color: #ffffff;
+    }
+
+    .tier-b {
+        background: rgba(255, 70, 85, 0.7);
+        color: #ffffff;
+    }
+
+    .tier-c {
+        background: rgba(17, 24, 35, 0.7);
+        color: #ffffff;
+    }
+
+    .legend {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(17, 24, 35, 0.95);
+        border: 2px solid rgba(255, 70, 85, 0.3);
+        padding: 20px;
+        border-radius: 10px;
+        backdrop-filter: blur(20px);
+        z-index: 1000;
+        box-shadow: 0 10px 30px rgba(255, 70, 85, 0.2);
+    }
+
+    .legend h4 {
+        font-family: 'Orbitron', monospace;
+        margin-bottom: 15px;
+        color: #ffffff;
+        text-shadow: 0 0 10px #FF4655;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 8px 0;
+        gap: 12px;
+        color: #ffffff;
+        font-weight: 500;
+    }
+
+    .legend-marker {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 10px rgba(255, 70, 85, 0.3);
+    }
+
+    .loading {
+        text-align: center;
+        padding: 60px 20px;
+        color: #ffffff;
+        font-size: 1.2rem;
+        background: rgba(17, 24, 35, 0.8);
+        border-radius: 15px;
+        border: 1px solid rgba(255, 70, 85, 0.3);
+    }
+
+    .loading::before {
+        content: '⚡';
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 15px;
+        animation: pulse 1.5s ease-in-out infinite alternate;
+    }
+
+    .error {
+        background: rgba(255, 70, 85, 0.1);
+        color: #FF4655;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 2px solid rgba(255, 70, 85, 0.3);
+        font-weight: 600;
+        text-align: center;
+    }
+
+    @media (max-width: 768px) {
+        .filter-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .filter-group {
+            min-width: auto;
+        }
+        
+        .stats {
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .legend {
+            position: relative;
+            margin-top: 20px;
+            bottom: auto;
+            right: auto;
+        }
+
+        .map-container {
+            height: 500px;
+        }
+    }
+
+    /* Leaflet popup styling overrides */
+    .leaflet-popup-content-wrapper {
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(255, 70, 85, 0.3);
+        border: 2px solid rgba(255, 70, 85, 0.2);
+    }
+
+    .leaflet-popup-tip {
+        background: rgba(255, 255, 255, 0.98);
+        border: 2px solid rgba(255, 70, 85, 0.2);
+        border-top: none;
+        border-right: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="map-hero">
+    <div class="container">
+        <h1 class="glitch" data-text="TOURNAMENT MAP">TOURNAMENT MAP</h1>
+        <p>Navigate the global battlefield - Track tournaments, venues, and events across all regions</p>
+    </div>
+</section>
+
+<div class="container">
+    <div class="controls">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>Year Range</label>
+                <select id="yearFilter">
+                    <option value="all">All Years</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                    <option value="2022">2022</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Tournament Tier</label>
+                <select id="tierFilter">
+                    <option value="all">All Tiers</option>
+                    <option value="S">S-Tier</option>
+                    <option value="A">A-Tier</option>
+                    <option value="B">B-Tier</option>
+                    <option value="C">C-Tier</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Region</label>
+                <select id="regionFilter">
+                    <option value="all">All</option>
+                    <option value="NA">Americas</option>
+                    <option value="EMEA">Europe</option>
+                    <option value="APAC">Asia Pacific</option>
+                    <option value="CN">China</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-number" id="visibleCount">0</span>
+                <div>Tournaments</div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="totalPrize">$0</span>
+                <div>Total Prize Pool</div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="venueCount">0</span>
+                <div>Unique Venues</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="errorMessage" class="error" style="display: none;"></div>
+    <div id="loadingMessage" class="loading">Initializing tournament data...</div>
+
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Leaflet JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<script>
+    // Initialize map
+    const map = L.map('map').setView([20, 0], 2);
+
+    // Add dark theme map tiles
+    L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors, © CartoDB',
+        subdomains: 'abcd'
+    }).addTo(map);
+
+    // Store markers and data
+    let markers = [];
+    let allTournaments = [];
+
+    // Tier colors matching the theme
+    const tierColors = {
+        'S': '#FF4655',
+        'A': '#111823', 
+        'B': 'rgba(255, 70, 85, 0.7)',
+        'C': 'rgba(17, 24, 35, 0.7)'
+    };
+
+    // UI elements
+    const loadingMessage = document.getElementById('loadingMessage');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Create custom marker with glow effect
+    function createMarker(tournament) {
+        const color = tierColors[tournament.tier] || '#666';
+        
+        const marker = L.circleMarker([tournament.venue.lat, tournament.venue.lng], {
+            radius: 10,
+            fillColor: color,
+            color: '#ffffff',
+            weight: 3,
+            opacity: 1,
+            fillOpacity: 0.9
+        });
+
+        // Add glow effect for S-tier tournaments
+        if (tournament.tier === 'S') {
+            marker.setStyle({
+                radius: 12,
+                weight: 4
+            });
+        }
+
+        // Create enhanced popup content
+        const teamsText = tournament.teams && tournament.teams.length > 0 ? 
+            tournament.teams.slice(0, 4).join(', ') + 
+            (tournament.teams.length > 4 ? ` +${tournament.teams.length - 4} more` : '') : 
+            'Teams TBD';
+        
+        const popupContent = `
+            <div class="custom-popup">
+                <div class="popup-title">${tournament.name}</div>
+                <div class="popup-detail"><strong>📅 Date:</strong> ${tournament.date ? new Date(tournament.date).toLocaleDateString() : 'TBD'}</div>
+                <div class="popup-detail"><strong>🏟️ Venue:</strong> ${tournament.venue.name}</div>
+                <div class="popup-detail"><strong>📍 Location:</strong> ${tournament.venue.city}, ${tournament.venue.country}</div>
+                ${tournament.venue.capacity ? `<div class="popup-detail"><strong>👥 Capacity:</strong> ${tournament.venue.capacity.toLocaleString()}</div>` : ''}
+                ${tournament.format ? `<div class="popup-detail"><strong>🎮 Format:</strong> ${tournament.format}</div>` : ''}
+                <div class="popup-detail"><strong>🎯 Teams:</strong> ${teamsText}</div>
+                <div class="popup-detail popup-prize"><strong>💰 Prize Pool:</strong> $${tournament.prizePool.toLocaleString()}</div>
+                <span class="popup-tier tier-${tournament.tier.toLowerCase()}">${tournament.tier}-Tier</span>
+            </div>
+        `;
+
+        marker.bindPopup(popupContent);
+        return marker;
+    }
+
+    // Add tournaments to map
+    function addTournaments(tournaments) {
+        // Clear existing markers
+        markers.forEach(marker => map.removeLayer(marker));
+        markers = [];
+
+        // Add new markers
+        tournaments.forEach(tournament => {
+            const marker = createMarker(tournament);
+            marker.addTo(map);
+            markers.push(marker);
+        });
+
+        updateStats(tournaments);
+    }
+
+    // Update statistics with animation
+    function updateStats(tournaments) {
+        const visibleCount = tournaments.length;
+        const totalPrize = tournaments.reduce((sum, t) => sum + t.prizePool, 0);
+        const uniqueVenues = new Set(tournaments.map(t => t.venue.name)).size;
+
+        // Animate numbers
+        animateNumber('visibleCount', visibleCount);
+        animateNumber('totalPrize', totalPrize, '$');
+        animateNumber('venueCount', uniqueVenues);
+    }
+
+    // Animate number counting
+    function animateNumber(elementId, targetValue, prefix = '') {
+        const element = document.getElementById(elementId);
+        const currentValue = parseInt(element.textContent.replace(/\D/g, '')) || 0;
+        const increment = Math.ceil((targetValue - currentValue) / 20);
+        
+        let current = currentValue;
+        const timer = setInterval(() => {
+            current += increment;
+            if ((increment > 0 && current >= targetValue) || (increment < 0 && current <= targetValue)) {
+                current = targetValue;
+                clearInterval(timer);
+            }
+            element.textContent = prefix + current.toLocaleString();
+        }, 50);
+    }
+
+    // Filter tournaments
+    function filterTournaments() {
+        const yearFilter = document.getElementById('yearFilter').value;
+        const tierFilter = document.getElementById('tierFilter').value;
+        const regionFilter = document.getElementById('regionFilter').value;
+
+        let filtered = allTournaments.filter(tournament => {
+            const year = tournament.date ? new Date(tournament.date).getFullYear().toString() : '';
+            
+            if (yearFilter !== 'all' && year !== yearFilter) return false;
+            if (tierFilter !== 'all' && tournament.tier !== tierFilter) return false;
+            if (regionFilter !== 'all' && tournament.region !== regionFilter) return false;
+            
+            return true;
+        });
+
+        addTournaments(filtered);
+    }
+
+    // Load tournaments from Flask API
+    async function loadTournaments() {
+        try {
+            loadingMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+            
+            const response = await fetch('/api/tournaments');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Transform the data to match our expected format
+            const tournaments = data.map(item => ({
+                id: item.tournament_id,
+                name: item.tournament_name,
+                date: item.start_date,
+                tier: item.tier || 'S',
+                prizePool: item.prize_pool || 0,
+                format: item.format || 'Unknown',
+                venue: {
+                    name: item.venue_name,
+                    city: item.city,
+                    country: item.country,
+                    capacity: item.capacity || 0,
+                    lat: item.latitude,
+                    lng: item.longitude
+                },
+                region: item.tournament_region,
+                teams: item.teams || []
+            }));
+            
+            allTournaments = tournaments;
+            addTournaments(tournaments);
+            
+            loadingMessage.style.display = 'none';
+            
+            if (tournaments.length === 0) {
+                errorMessage.textContent = '⚠️ No tournaments found in the database.';
+                errorMessage.style.display = 'block';
+            }
+            
+        } catch (error) {
+            console.error('Error loading tournaments:', error);
+            loadingMessage.style.display = 'none';
+            errorMessage.textContent = `❌ Error loading tournaments: ${error.message}`;
+            errorMessage.style.display = 'block';
+        }
+    }
+
+    // Add event listeners
+    document.getElementById('yearFilter').addEventListener('change', filterTournaments);
+    document.getElementById('tierFilter').addEventListener('change', filterTournaments);
+    document.getElementById('regionFilter').addEventListener('change', filterTournaments);
+
+    // Initialize
+    loadTournaments();
+</script>
+{% endblock %}
